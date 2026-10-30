@@ -14,13 +14,11 @@ Source and design: https://github.com/jooray/tlsnotary-cashu (DESIGN.md has the 
 
 Use the `tlsnc` command-line client. It runs the prover locally, connects to the target website itself (cheapest price, the notary never contacts the target), and has a Cashu wallet built in. It has no default notary: pass `--notary NOTARY` or set `TLSNC_NOTARY=NOTARY`. Its wallet directory is ~/.tlsnc.
 
-Install a prebuilt binary (Linux x86_64 and aarch64, macOS arm64) from the latest GitHub release into ~/.local/bin; the script checks SHA-256 sums:
-
-    curl -fsSL https://jooray.github.io/tlsnotary-cashu/install.sh | sh
-
-Or build from source (Rust ≥ 1.95, several minutes):
+Build it from source (Rust ≥ 1.95, several minutes):
 
     cargo install --locked --git https://github.com/jooray/tlsnotary-cashu tlsnc
+
+Or download the binary for your platform (tlsnc-x86_64-linux, tlsnc-aarch64-linux, tlsnc-aarch64-macos) from https://github.com/jooray/tlsnotary-cashu/releases/latest, check it against SHA256SUMS from the same release, and make it executable.
 
 Check it works: `TLSNC_NOTARY=NOTARY tlsnc info` prints the notary's tiers, prices and mints.
 

@@ -1,4 +1,4 @@
-# Publishes apps/site (the project page, llms.txt, install.sh) to GitHub Pages.
+# Publishes apps/site (the project page and llms.txt) to GitHub Pages.
 name: pages
 
 on:

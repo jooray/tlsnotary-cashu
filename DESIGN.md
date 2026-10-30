@@ -46,7 +46,7 @@ packages/
   client/        @tlsnc/client    TS: payment (NUT-24), transport (WebSocket), high-level API
   verify/        @tlsnc/verify    TS: presentation verification (no threads, no COOP/COEP)
 apps/
-  site/          static info page, llms.txt (agents), install.sh — served at /
+  site/          project page and llms.txt (agents), on GitHub Pages
   demo/          PWA at /app/: pay, notarize an API endpoint, present, verify
   extension/     Chrome MV3 extension: notarize the current tab, built-in Cashu wallet
 deploy/          systemd unit, nftables egress table, nginx vhost, config example
@@ -256,7 +256,8 @@ The CLI is the cheapest client (it connects to the target itself) and the one
   Lightning (an invoice with a terminal QR code, polled until paid) at the
   notary's first mint; anything else is received as a token.
 - Prebuilt binaries (Linux x86_64/aarch64 against glibc 2.28, macOS arm64)
-  are served from `/dl/` with `SHA256SUMS`; `install.sh` checks the sum.
+  are attached to each GitHub release, and a notary can serve them from
+  `/dl/`, both with `SHA256SUMS`.
 
 ### tlsnc-verify (Rust, wasm)
 

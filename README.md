@@ -36,7 +36,7 @@ The design and its rationale are in [DESIGN.md](DESIGN.md).
 | `wasm/prover` | `@tlsnc/wasm`, the browser prover (nightly, threads) |
 | `packages/client` | `@tlsnc/client`, browser API: pay, notarize, present |
 | `packages/verify` | `@tlsnc/verify`, browser/Node verification (no threads, no COOP/COEP) |
-| `apps/site` | the project page on GitHub Pages, `llms.txt` and `install.sh` |
+| `apps/site` | the project page on GitHub Pages and `llms.txt` |
 | `apps/demo` | the web app (PWA), served by the notary at `/app/` |
 | `apps/extension` | Chrome extension: notarize the current tab (with its cookies), built-in Cashu wallet with backup ([README](apps/extension/README.md)) |
 | `deploy` | systemd units, nftables egress table, nginx template, deploy scripts, [DEPLOY.md](deploy/DEPLOY.md) |
@@ -60,7 +60,7 @@ with the same ticket, not refunded.
 ## CLI
 
 ```sh
-curl -fsSL https://jooray.github.io/tlsnotary-cashu/install.sh | sh   # or: cargo install --locked --git https://github.com/jooray/tlsnotary-cashu tlsnc
+cargo install --locked --git https://github.com/jooray/tlsnotary-cashu tlsnc   # or a binary from the latest release
 export TLSNC_NOTARY=https://notary.example.org   # your notary
 
 tlsnc receive 500                          # Lightning invoice (with a QR code) for 500 sat; or: tlsnc receive cashuB…

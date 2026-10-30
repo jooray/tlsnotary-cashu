@@ -119,9 +119,8 @@ deploy/deploy.sh      # user, config, key, systemd units, nftables, SELinux, ngi
             The CLI connects to the website itself, so the notary never touches the target. It is the cheapest option and
             suits scripts and agents. It has a Cashu wallet built in.
           </p>
-<pre><code># install (Linux x86_64 and aarch64, macOS arm64) into ~/.local/bin
-curl -fsSL https://jooray.github.io/tlsnotary-cashu/install.sh | sh
-# or build it: cargo install --locked --git https://github.com/jooray/tlsnotary-cashu tlsnc
+<pre><code># build it (Rust ≥ 1.95), or take a binary from the latest release
+cargo install --locked --git https://github.com/jooray/tlsnotary-cashu tlsnc
 
 export TLSNC_NOTARY=https://notary.example.org     # your notary
 
