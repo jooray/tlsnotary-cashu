@@ -57,10 +57,54 @@ column: the native CLI connects itself, a browser goes through the notary.
 A ticket allows 3 attempts within 30 minutes; a failed session is retried
 with the same ticket, not refunded.
 
+## Installing
+
+### The CLI from source
+
+You need Rust 1.95 or newer ([rustup](https://rustup.rs)). The build takes a
+few minutes and puts `tlsnc` in `~/.cargo/bin`:
+
+```sh
+cargo install --locked --git https://github.com/jooray/tlsnotary-cashu tlsnc
+```
+
+### The CLI from a release binary
+
+Each [release](https://github.com/jooray/tlsnotary-cashu/releases) has
+binaries for Linux x86_64 and aarch64 (glibc 2.28 or newer) and macOS arm64,
+and a `SHA256SUMS` file. Download yours and the sums, check it, and put it
+on your `PATH`:
+
+```sh
+V=v0.1.0
+F=tlsnc-x86_64-linux      # or tlsnc-aarch64-linux, tlsnc-aarch64-macos
+curl -fLO https://github.com/jooray/tlsnotary-cashu/releases/download/$V/$F
+curl -fLO https://github.com/jooray/tlsnotary-cashu/releases/download/$V/SHA256SUMS
+grep " $F\$" SHA256SUMS | sha256sum -c -     # on macOS: shasum -a 256 -c -
+chmod +x $F
+mkdir -p ~/.local/bin && mv $F ~/.local/bin/tlsnc
+```
+
+The sums come from the same release, so they catch a broken download, not a
+tampered release; build from source if that matters to you. The macOS binary
+is not signed. If you downloaded it with a browser, macOS quarantines it;
+`xattr -d com.apple.quarantine ~/.local/bin/tlsnc` lifts that.
+
+### The browser extension
+
+Download `tlsnc-extension.zip` from the release (or build it with
+`npm install && npm run build:extension`, output in `apps/extension/dist`),
+unzip it into a folder you keep, then in Chrome, Brave or Edge open
+`chrome://extensions`, turn on Developer mode and choose "Load unpacked" with
+that folder. Enter your notary's URL in the extension's settings.
+
+### The server
+
+See [deploy/DEPLOY.md](deploy/DEPLOY.md).
+
 ## CLI
 
 ```sh
-cargo install --locked --git https://github.com/jooray/tlsnotary-cashu tlsnc   # or a binary from the latest release
 export TLSNC_NOTARY=https://notary.example.org   # your notary
 
 tlsnc receive 500                          # Lightning invoice (with a QR code) for 500 sat; or: tlsnc receive cashuB…

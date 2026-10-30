@@ -132,6 +132,8 @@ tlsnc notarize https://httpbin.org/json            # pays the ticket, writes not
 tlsnc present --json slideshow.author              # reveal one JSON field, writes notarized.presentation
 tlsnc verify notarized.presentation                # checks it against the notary's published keys</code></pre>
           <p class="hint">
+            Installing step by step, including checking a release binary:
+            <a href="https://github.com/jooray/tlsnotary-cashu#installing">README</a>.
             Headers and bodies work like curl: <code>-H 'Authorization: Bearer …'</code>, <code>-X POST -d '…'</code>.
             Authorization, Cookie and similar headers are never revealed unless you pass
             <code>--allow-credentials</code>. <code>tlsnc backup</code> prints the wallet's 12 words;
