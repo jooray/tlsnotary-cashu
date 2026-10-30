@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Notarize · tlsnc</title>
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><img src="/icon.svg" alt="" width="22" height="22" /> <span>TLSNotary <em>·</em> Cashu</span> <span class="hint">notarize</span></div>
+    <div class="hint"><span id="balance">…</span> sat · <a href="app.html" target="_blank">wallet</a></div>
+  </header>
+  <main>
+    <div class="card">
+      <h2>1. Request</h2>
+      <label>URL <input id="url" type="url" placeholder="https://…" /></label>
+      <label class="check"><input id="use-cookies" type="checkbox" /> Send this site's cookies (you are logged in as yourself)</label>
+      <p class="hint" id="cookie-hint">The cookies go only to the site, inside the TLS session; the notary cannot read them and
+        the presentation hides them unless you choose otherwise.</p>
+      <details>
+        <summary>More headers</summary>
+        <label>One per line, <code>Name: value</code>
+          <textarea id="headers" rows="3" placeholder="Authorization: Bearer …"></textarea></label>
+        <label>Connection <select id="mode">
+          <option value="bridge">MPC-TLS through the notary's bridge</option>
+          <option value="proxy">Proxy mode (faster, the notary sees the encrypted traffic only)</option>
+        </select></label>
+      </details>
+      <div class="row end">
+        <span class="hint" id="quote"></span>
+        <button id="go" class="primary">Notarize</button>
+      </div>
+      <ol class="steps" id="steps"></ol>
+      <p class="msg" id="go-msg"></p>
+      <div class="row end"><button id="retry" hidden>Retry with the same ticket</button></div>
+    </div>
+
+    <div class="card" id="result" hidden>
+      <h2>2. Response</h2>
+      <p id="status"></p>
+      <pre id="body" class="body"></pre>
+      <div class="row end">
+        <button id="dl-attestation" class="ghost" title="The secrets file holds the whole transcript, cookies included: keep it private">Download attestation + secrets</button>
+      </div>
+    </div>
+
+    <div class="card" id="reveal" hidden>
+      <h2>3. What to reveal</h2>
+      <p class="hint">Everything not ticked stays hidden in the presentation; the verifier sees only its length.</p>
+      <h3>Request</h3>
+      <label class="check"><input id="rv-target" type="checkbox" checked /> Path and query</label>
+      <div id="rv-req-headers" class="checks"></div>
+      <h3>Response headers</h3>
+      <div id="rv-res-headers" class="checks"></div>
+      <h3>Response body</h3>
+      <div class="row">
+        <label class="check"><input type="radio" name="body" value="all" checked /> All</label>
+        <label class="check"><input type="radio" name="body" value="json" /> JSON paths</label>
+        <label class="check"><input type="radio" name="body" value="none" /> None</label>
+      </div>
+      <textarea id="rv-json" rows="2" placeholder="data.user.name, data.balance" hidden></textarea>
+      <label class="check danger"><input id="rv-creds" type="checkbox" /> Allow revealing cookies and authorization headers</label>
+      <div class="row end"><button id="present" class="primary">Build presentation</button></div>
+      <p class="msg" id="present-msg"></p>
+      <div id="verified"></div>
+    </div>
+  </main>
+  <script type="module" src="/src/notarize.ts"></script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+# TLSNotary · Cashu
+
+> Software for a TLSNotary notary that is paid per session with Cashu ecash, and its clients. The notary takes part in an HTTPS session through multi-party computation (MPC-TLS) without seeing it, and signs an attestation. From the attestation you build a presentation that reveals only chosen parts of the request and response, with proof that the server sent them. Anyone who trusts the notary's key verifies it offline. Sessions are paid with Cashu ecash (sat), without an account.
+
+Use it when you need to prove to a third party what an HTTPS server returned: an account balance, a profile field, an API response, a page's text at a given time. Do not use it as a proxy or scraper; notaries price it well above a VPN on purpose.
+
+**There is no public notary.** Every client needs the URL of a notary someone runs. If your human has not given you one, ask for it. If they want their own, setting one up is in https://github.com/jooray/tlsnotary-cashu/blob/main/deploy/DEPLOY.md (a Linux server, a domain, about an hour). Below, NOTARY stands for that URL, e.g. https://notary.example.org.
+
+Live prices, limits, mints and key of a notary: NOTARY/info (JSON)
+Notary keys to trust: NOTARY/.well-known/tlsnc-notary.json
+Source and design: https://github.com/jooray/tlsnotary-cashu (DESIGN.md has the full protocol)
+
+## Software to use
+
+Use the `tlsnc` command-line client. It runs the prover locally, connects to the target website itself (cheapest price, the notary never contacts the target), and has a Cashu wallet built in. It has no default notary: pass `--notary NOTARY` or set `TLSNC_NOTARY=NOTARY`. Its wallet directory is ~/.tlsnc.
+
+Install a prebuilt binary (Linux x86_64 and aarch64, macOS arm64) from the latest GitHub release into ~/.local/bin; the script checks SHA-256 sums:
+
+    curl -fsSL https://jooray.github.io/tlsnotary-cashu/install.sh | sh
+
+Or build from source (Rust ≥ 1.95, several minutes):
+
+    cargo install --locked --git https://github.com/jooray/tlsnotary-cashu tlsnc
+
+Check it works: `TLSNC_NOTARY=NOTARY tlsnc info` prints the notary's tiers, prices and mints.
+
+Other clients: a web app the notary serves at NOTARY/app/ (for humans; it costs the higher "notary connects" price), a browser extension for pages the user is logged in to, with its own Cashu wallet (tlsnc-extension.zip in the GitHub release, load unpacked in Chrome, then set the notary URL; apps/extension in the repo), and libraries: Rust `tlsnc-client` and `tlsnc-verify`, JavaScript `@tlsnc/client` and `@tlsnc/verify` (in the repo under packages/).
+
+## Getting Cashu ecash
+
+The wallet needs sat from one of the notary's accepted mints (listed in NOTARY/info).
+
+    tlsnc receive 500                       # creates a Lightning invoice for 500 sat at the notary's first mint
+    tlsnc receive 500 --mint https://mint.example  # one of the mints in /info
+    tlsnc receive cashuB...                 # receives a Cashu token (cashuA... or cashuB...)
+    tlsnc balance                           # per mint and total
+
+`tlsnc receive <amount>` prints a QR code and a `lnbc...` invoice to stderr, then waits up to 10 minutes until it is paid and the ecash is minted. If you cannot pay Lightning yourself, show the invoice to your human and ask them to pay it, or ask them for a Cashu token from a wallet such as Minibits or cashu.me set to an accepted mint. Do not spend more than you were authorized to.
+
+Backup: `tlsnc backup` prints 12 words that restore the wallet's funds; `tlsnc restore "<12 words>" --wallet <new dir>` recovers them (it scans the notary's mints, or the ones given with `--mint`). Move funds out with `tlsnc send <amount>`, which prints a token. Treat tokens and backup words as cash.
+
+## Notarizing
+
+    tlsnc notarize https://httpbin.org/json
+    tlsnc notarize https://api.example.com/v1/me -H 'Authorization: Bearer TOKEN' -o me
+    tlsnc notarize https://api.example.com/v1/query -X POST -H 'Content-Type: application/json' -d '{"q":1}'
+
+It picks the smallest tier that fits the request, pays the ticket from the wallet, runs MPC-TLS, prints the response body to stdout and progress to stderr, and writes PREFIX.attestation and PREFIX.secrets (default prefix `notarized`). Options: `--tier S|M|L`, `--max-recv BYTES`, `--expect-key HEX` (refuse a notary with another key), `--token cashuB...` (pay with a token instead of the wallet), `--mode proxy` (the notary connects to the target; 5x price; for clients that cannot open TCP).
+
+If a session fails after paying, the error ends with `retry with --ticket tk_...`. Run the same command again with that `--ticket`: a ticket allows 3 attempts within 30 minutes and is not refunded.
+
+## Presenting (selective disclosure)
+
+    tlsnc present notarized --json slideshow.author          # reveal only this JSON field (repeatable)
+    tlsnc present me --json data.balance --json data.currency -o balance.presentation
+    tlsnc present notarized --hide-body                       # only headers and the request line
+    tlsnc present notarized                                   # whole response body
+
+Defaults reveal the request line, the Host header and the response's Date and Content-Type headers. Authorization, Cookie, Set-Cookie and similar values are never revealed unless `--allow-credentials` is passed; do not pass it unless the human explicitly wants the credential shown. Other options: `--request-header NAME`, `--response-header NAME`, `--request-body`, `--hide-target`, `-o FILE`. Keep PREFIX.secrets private: anyone with it can build presentations of the session. Hand out only the .presentation file.
+
+## Verifying
+
+    tlsnc verify notarized.presentation                  # trusts the keys this notary publishes
+    tlsnc verify notarized.presentation --key 03ab...     # trusts only this key (pin it)
+
+Output is JSON: notary_key, server_name, time (Unix seconds), sent and received transcripts with undisclosed bytes shown as `X`, and the disclosed ranges. Verification checks the notary's signature, the server's certificate chain against the Mozilla roots, and the revealed bytes. A presentation proves what the server sent; it is only as trustworthy as the notary key you accept.
+
+## Prices and limits
+
+Defaults per session, in sat; each notary sets its own (see NOTARY/info):
+
+| Tier | Request (sent) | Response | Client connects (CLI) | Notary connects (browser, --mode proxy) |
+|---|---|---|---|---|
+| S | ≤ 4 KiB | ≤ 1 MiB | 42 | 210 |
+| M | ≤ 16 KiB | ≤ 2 MiB | 100 | 500 |
+| L | ≤ 32 KiB | ≤ 2 MiB | 200 | 1000 |
+
+The request limit counts the whole HTTP request (request line, headers, body). Mint input fees (usually 0-2 sat) are on the payer; the CLI adds them. Constraints:
+- The target must support TLS 1.2 (MPC-TLS does not do 1.3 yet). Most servers do.
+- Only https, port 443, DNS host names. The notary refuses private, loopback and its operator's own addresses, and limits notary-egress sessions per target host per hour.
+- The CLI forces `Accept-Encoding: identity` and `Connection: close`, so responses are not compressed.
+- A response larger than the tier's limit (or `--max-recv`) fails the session; a smaller `--max-recv` makes it faster.
+
+## Raw protocol (writing your own client)
+
+1. `GET /info` → tiers, prices (`price.client`, `price.notary`), `mints`, `unit` ("sat"), `notary_key`, `tlsn_version` (must match your tlsn build exactly: currently 0.1.0-alpha.16-pre+24b10ba, i.e. tlsn git revision 24b10ba21bf36c3fd3de709e7eccd8308bb64207), `protocol` ("tlsnc/1").
+2. `POST /v1/tickets?tier=S&egress=client` (egress=notary for proxy mode or the browser bridge) → `402` with header `X-Cashu: creqA...`, a NUT-18 payment request (amount net of fees, unit, accepted mints).
+3. Repeat the POST with header `X-Cashu: cashuB...` (NUT-24): a token from an accepted mint worth at least the amount plus the mint's input fees → `200 {"ticket":"tk_...","expires_at":...,"attempts":3,"tier":{...},"egress":"client","received":42}`. A token worth too little → `400` with a refund token in the body. Errors are JSON `{"code":"...","error":"..."}`.
+4. Open a WebSocket to `wss://NOTARY-HOST/v1/notarize` with header `Sec-WebSocket-Protocol: tlsnc, tlsnc.<ticket>`. Run an unmodified tlsn prover session of that revision over it (MPC with your own TCP connection to the target, or proxy mode for egress=notary tickets). Then send one frame (u32 big-endian length + bytes) with the bincode attestation request; read one reply frame: status byte 0 + bincode Attestation, or 1 + UTF-8 error.
+5. Browsers cannot open TCP: open `wss://.../v1/bridge?host=<target>` with the same subprotocol, after the notarize session started, and use it as the server connection (egress=notary ticket required).
+   Open the connection to the target only after MPC setup (it takes a minute or more), and do not pass the target's end of stream to the prover before your client has sent its first TLS application-data record: tlsn otherwise recurses until the stack overflows (https://github.com/tlsnotary/tlsn/issues/1205). `tlsnc-client` does both.
+6. `POST /v1/tickets/status` with JSON `{"ticket":"tk_..."}` explains a refused session: tier, egress, expires_at, attempts_left, spent, expired, session_running, capacity_available.
+
+Status codes: 402 pay, 400 bad request or bad payment, 401 no/unknown ticket, 403 egress not paid or forbidden target, 409 session already running, 410 ticket expired/spent/out of attempts, 429 per-host rate limit, 502 target unreachable, 503 notary busy or mint unavailable (honor Retry-After; the ticket is not used).
+
+## Links
+
+- [Project page](https://jooray.github.io/tlsnotary-cashu/): what this is, for humans
+- [Running a notary](https://github.com/jooray/tlsnotary-cashu/blob/main/deploy/DEPLOY.md)
+- Web app: NOTARY/app/, notarize and verify in the browser
+- [README](https://github.com/jooray/tlsnotary-cashu#readme): libraries and building
+- [DESIGN.md](https://github.com/jooray/tlsnotary-cashu/blob/main/DESIGN.md): protocol, security and pricing rationale
+- [TLSNotary](https://tlsnotary.org/docs/intro): the underlying protocol
+- [NUT-24](https://github.com/cashubtc/nuts/blob/main/24.md) and [NUT-18](https://github.com/cashubtc/nuts/blob/main/18.md): Cashu HTTP 402 payments

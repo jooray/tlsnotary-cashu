@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TLSNotary · Cashu</title>
+    <meta name="description" content="A TLSNotary notary server you run yourself. Prove what an HTTPS server told you, reveal only the part you choose, and charge per session in Cashu ecash." />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="alternate" type="text/plain" href="llms.txt" title="Instructions for AI agents" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="top">
+      <a class="brand" href="./"><img src="icon.svg" alt="" width="28" height="28" /> TLSNotary <em>· Cashu</em></a>
+      <nav>
+        <a href="#how">How it works</a>
+        <a href="#server">Run a notary</a>
+        <a href="#notarize">Notarize</a>
+        <a href="#pay">Paying</a>
+        <a href="#verify">Verify</a>
+        <a href="https://github.com/jooray/tlsnotary-cashu">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <h1>Prove what a website told you.</h1>
+        <p class="lead">
+          This is a <a href="https://tlsnotary.org">TLSNotary</a> notary server and its clients. You fetch a page over
+          HTTPS as you normally would; the notary takes part in the TLS session without seeing it and signs an
+          attestation. You then show anyone the part you choose (one field of a JSON response, a single line of a
+          page) with proof that the server really sent it.
+        </p>
+        <p class="lead">The notary charges each session in <a href="https://cashu.space">Cashu</a> ecash, so its users do not need an account.</p>
+        <p class="notice">
+          <strong>You need to run the server yourself.</strong> There is no public notary, and the clients on this page
+          do nothing without one. Setting one up takes a Linux server, a domain name and about an hour:
+          <a href="#server">see below</a>.
+        </p>
+        <div class="cta">
+          <a class="button primary" href="https://github.com/jooray/tlsnotary-cashu/blob/main/deploy/DEPLOY.md">Run a notary</a>
+          <a class="button" href="#cli">Command line</a>
+          <a class="button" href="llms.txt">llms.txt for agents</a>
+        </div>
+      </section>
+
+      <section id="how">
+        <h2>How it works</h2>
+        <ol class="flow">
+          <li>
+            <strong>Pay.</strong> Your client asks the notary for a ticket and gets HTTP <code>402</code> with a
+            Cashu payment request. It pays with an ecash token from one of the accepted mints and receives a ticket,
+            good for 3 attempts within 30 minutes.
+          </li>
+          <li>
+            <strong>Connect.</strong> Your client opens the TLS connection to the website. The TLS keys are split
+            between you and the notary by multi-party computation (MPC-TLS): only you can read the traffic, and you
+            cannot forge it alone. Your client checks the server's certificate as a browser would.
+          </li>
+          <li>
+            <strong>Attest.</strong> When the request is done, the notary signs an <em>attestation</em>: commitments
+            to the encrypted transcript, the server's identity and the time. The notary learns neither the request,
+            the response nor the site's name.
+          </li>
+          <li>
+            <strong>Present.</strong> From the attestation and your local secrets you build a <em>presentation</em>
+            that reveals only the bytes you choose. Everything else stays hidden and shows as <code>X</code>.
+          </li>
+          <li>
+            <strong>Verify.</strong> Anyone who trusts the notary's key verifies the presentation offline: the
+            server name and its certificate chain, the time, and the revealed bytes. No call to the notary or the
+            website is needed.
+          </li>
+        </ol>
+        <p class="hint">
+          The notary runs upstream TLSNotary <code>tlsn</code> (a pinned revision after v0.1.0-alpha.15) unchanged,
+          wrapped with payment, limits and an egress policy. Upstream no longer ships a notary server or runs a public
+          one; this is a notary you can run.
+        </p>
+      </section>
+
+      <section id="server">
+        <h2>Run a notary</h2>
+        <p>
+          The server is <code>tlsnc-notary</code>, a single Rust binary behind nginx. It sells tickets, takes part in
+          the MPC-TLS sessions, signs attestations and keeps the ecash it earns in a wallet of its own. You need:
+        </p>
+        <ul>
+          <li>a Linux server with systemd, nftables and nginx, and about 4 GB of RAM for the notary;</li>
+          <li>a domain name and a TLS certificate for it;</li>
+          <li>a machine with Rust ≥ 1.95 (and Node.js for the web app) to build it.</li>
+        </ul>
+<pre><code>git clone https://github.com/jooray/tlsnotary-cashu && cd tlsnotary-cashu
+cargo zigbuild --release -p tlsnc-notary --target x86_64-unknown-linux-gnu.2.28
+npm install && deploy/build-web.sh
+
+export TLSNC_HOST=root@server.example.org TLSNC_DOMAIN=notary.example.org
+deploy/deploy.sh      # user, config, key, systemd units, nftables, SELinux, nginx, web app</code></pre>
+        <p>
+          Then edit <code>/etc/tlsnc/config.toml</code>: the mints you accept, your prices, and the public addresses of
+          your own machines, which the notary must never connect to. The notary connects to hosts its clients name, so
+          it is fenced in three ways (its own address checks, systemd and nftables) and reaches only the public
+          internet on port 443. The full guide, with every step by hand, is
+          <a href="https://github.com/jooray/tlsnotary-cashu/blob/main/deploy/DEPLOY.md">DEPLOY.md</a>.
+        </p>
+        <p>
+          Your notary serves the web app at <code>/app/</code> and publishes its key at
+          <code>/.well-known/tlsnc-notary.json</code>. Give your users its URL; every client below takes it as a
+          setting.
+        </p>
+      </section>
+
+      <section id="notarize">
+        <h2>Notarize a page</h2>
+
+        <div class="card" id="cli">
+          <h3>Command line: <code>tlsnc</code></h3>
+          <p>
+            The CLI connects to the website itself, so the notary never touches the target. It is the cheapest option and
+            suits scripts and agents. It has a Cashu wallet built in.
+          </p>
+<pre><code># install (Linux x86_64 and aarch64, macOS arm64) into ~/.local/bin
+curl -fsSL https://jooray.github.io/tlsnotary-cashu/install.sh | sh
+# or build it: cargo install --locked --git https://github.com/jooray/tlsnotary-cashu tlsnc
+
+export TLSNC_NOTARY=https://notary.example.org     # your notary
+
+tlsnc receive 500                 # Lightning: prints an invoice (and a QR code), waits for payment
+tlsnc receive cashuB…             # or receive a Cashu token you already have
+tlsnc balance
+
+tlsnc notarize https://httpbin.org/json            # pays the ticket, writes notarized.attestation + .secrets
+tlsnc present --json slideshow.author              # reveal one JSON field, writes notarized.presentation
+tlsnc verify notarized.presentation                # checks it against the notary's published keys</code></pre>
+          <p class="hint">
+            Headers and bodies work like curl: <code>-H 'Authorization: Bearer …'</code>, <code>-X POST -d '…'</code>.
+            Authorization, Cookie and similar headers are never revealed unless you pass
+            <code>--allow-credentials</code>. <code>tlsnc backup</code> prints the wallet's 12 words;
+            <code>tlsnc restore "…"</code> brings the funds back on another machine.
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>In the browser</h3>
+          <p>
+            The web app, served by your notary at <code>/app/</code>, runs the whole prover in WebAssembly in the
+            browser: enter a URL and optional headers (an API token, for example), paste a Cashu token, and download a
+            presentation. A web page cannot reach a website by raw TCP, so the browser's connection goes through the
+            notary's bridge, which forwards only encrypted TLS bytes. That counts as notary egress and costs more.
+          </p>
+          <p>
+            Pages you are logged in to need your cookies, which a web page cannot read. For those, use the browser
+            extension: it notarizes the tab you are on (with its cookies, if you allow it for that site) and carries its
+            own small Cashu wallet with balance, history and a 12-word backup. Download
+            <code>tlsnc-extension.zip</code> from the
+            <a href="https://github.com/jooray/tlsnotary-cashu/releases/latest">latest release</a> (or from your notary's
+            <code>/dl/</code>), unzip it, and load the folder in <code>chrome://extensions</code> with Developer mode on
+            (“Load unpacked”). Then enter your notary's URL in its settings.
+            <a href="https://github.com/jooray/tlsnotary-cashu/tree/main/apps/extension#readme">Details</a>.
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>From your own code</h3>
+          <p>
+            Rust: <code>tlsnc-client</code> (prover and presentations) and <code>tlsnc-verify</code>.
+            JavaScript: <code>@tlsnc/client</code> (pay, notarize, present in the browser) and
+            <code>@tlsnc/verify</code> (verification only, 600 KB of WebAssembly, works in Node and in any page).
+            See the <a href="https://github.com/jooray/tlsnotary-cashu#readme">README</a>.
+          </p>
+        </div>
+      </section>
+
+      <section id="pay">
+        <h2>Paying with Cashu</h2>
+        <p>
+          Each notary sets its own prices, per session in sat, and shows them at <code>/info</code>. The defaults are
+          high on purpose: a notary should not be worth using as a cheap proxy, and a VPN should stay cheaper. Who
+          opens the connection to the website decides the column.
+        </p>
+        <div class="table-wrap">
+          <table id="prices">
+            <thead>
+              <tr><th>Tier</th><th>Request</th><th>Response</th><th>You connect<br /><small>CLI, MPC</small></th><th>Notary connects<br /><small>browser, proxy</small></th></tr>
+            </thead>
+            <tbody>
+              <tr><td>S</td><td>≤ 4 KiB</td><td>≤ 1 MiB</td><td>42</td><td>210</td></tr>
+              <tr><td>M</td><td>≤ 16 KiB</td><td>≤ 2 MiB</td><td>100</td><td>500</td></tr>
+              <tr><td>L</td><td>≤ 32 KiB</td><td>≤ 2 MiB</td><td>200</td><td>1 000</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="hint">
+          The request limit is what you send (URL, headers, body); responses are cheap to notarize. A ticket allows 3
+          attempts: a failed session is retried with the same ticket, not refunded. Mint fees are on the payer.
+        </p>
+        <p>
+          Get ecash from one of the notary's mints (listed in its <code>/info</code>) with
+          <code>tlsnc receive &lt;amount&gt;</code> (pay the Lightning invoice it prints), or with any Cashu wallet
+          (<a href="https://www.minibits.cash">Minibits</a>, <a href="https://cashu.me">cashu.me</a>, …) set to one of
+          those mints, then send yourself a token.
+        </p>
+
+        <h3>The protocol</h3>
+        <p>
+          Tickets are sold over plain HTTP following <a href="https://github.com/cashubtc/nuts/blob/main/24.md">NUT-24</a>
+          (HTTP 402 with an <code>X-Cashu</code> header carrying a
+          <a href="https://github.com/cashubtc/nuts/blob/main/18.md">NUT-18</a> payment request):
+        </p>
+<pre><code>POST /v1/tickets?tier=S&amp;egress=client
+→ 402 Payment Required
+  X-Cashu: creqA…            # amount (net of mint fees), unit sat, accepted mints
+
+POST /v1/tickets?tier=S&amp;egress=client
+X-Cashu: cashuB…             # a token from one of those mints, at least the amount plus input fees
+→ 200 {"ticket":"tk_…","expires_at":…,"attempts":3,"tier":{…},"egress":"client","received":42}
+
+GET /v1/notarize             # WebSocket; the ticket rides in the subprotocol header
+Sec-WebSocket-Protocol: tlsnc, tlsnc.tk_…</code></pre>
+        <p>
+          Over that WebSocket runs an unmodified tlsn session, followed by one length-prefixed frame each way: the
+          attestation request and the signed attestation. A token that is worth too little is returned as a refund
+          token in the <code>400</code> response. <code>POST /v1/tickets/status</code> (body <code>{"ticket":"tk_…"}</code>) tells why a
+          session was refused. Full description: <a href="https://github.com/jooray/tlsnotary-cashu/blob/main/DESIGN.md">DESIGN.md</a>.
+        </p>
+      </section>
+
+      <section id="verify">
+        <h2>Verifying</h2>
+        <p>
+          A presentation is only as good as the notary key you trust. Each notary publishes its keys at
+          <code>/.well-known/tlsnc-notary.json</code>; pin the key rather than fetching it each time.
+        </p>
+        <p>
+          Verify with <code>tlsnc verify</code>, with <code>@tlsnc/verify</code> in a page or in Node, or in the web app.
+          Verification checks the signature, the server certificate against the Mozilla roots, and that the revealed
+          bytes match the attested transcript.
+        </p>
+      </section>
+
+      <section id="limits">
+        <h2>Limits and privacy</h2>
+        <ul>
+          <li>MPC-TLS needs a server that speaks TLS 1.2 (most do, alongside 1.3).</li>
+          <li>The notary sees neither your request nor the response nor, with the CLI, the website's name. The
+            browser bridge has to know the host it connects to; it forwards only encrypted bytes.</li>
+          <li>The notary connects only to public internet addresses, port 443, a limited number of times per host per
+            hour. It refuses private, local and its operator's own networks.</li>
+          <li>Payments are ecash: the notary learns that a token was redeemed, not who paid. Tickets never appear in
+            URLs; the web server's access log keeps IP addresses for abuse handling, without query strings.</li>
+          <li>Keep the <code>.secrets</code> file private: anyone with it can build presentations of your session.</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <a href="https://github.com/jooray/tlsnotary-cashu">Source (MIT)</a> ·
+      <a href="llms.txt">llms.txt</a> ·
+      built on <a href="https://tlsnotary.org">TLSNotary</a> and <a href="https://cashu.space">Cashu</a>
+    </footer>
+  </body>
+</html>

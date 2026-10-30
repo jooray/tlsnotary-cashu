@@ -1,0 +1,15 @@
+# SELinux: lets nginx (httpd_t) connect to the notary's Unix socket. The
+# notary runs as a plain systemd service (unconfined_service_t); without this
+# nginx gets EACCES on /run/tlsnc/notary.sock. Install (as root):
+#   checkmodule -M -m -o tlsnc-nginx.mod tlsnc-nginx.te
+#   semodule_package -o tlsnc-nginx.pp -m tlsnc-nginx.mod && semodule -i tlsnc-nginx.pp
+#   semanage fcontext -a -t httpd_var_run_t '/run/tlsnc(/.*)?'
+module tlsnc-nginx 1.0;
+
+require {
+    type httpd_t;
+    type unconfined_service_t;
+    class unix_stream_socket connectto;
+}
+
+allow httpd_t unconfined_service_t:unix_stream_socket connectto;

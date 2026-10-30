@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TLSNotary · Cashu</title>
+    <meta name="description" content="Prove what an HTTPS server told you. Pay the notary per session with Cashu." />
+    <meta name="theme-color" content="#101418" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <header class="top">
+      <a class="brand" href="https://jooray.github.io/tlsnotary-cashu/" title="What this is">
+        <img src="./icon.svg" alt="" width="28" height="28" />
+        <span>TLSNotary <em>·</em> Cashu</span>
+      </a>
+      <nav>
+        <button class="tab active" data-tab="notarize">Notarize</button>
+        <button class="tab" data-tab="verify">Verify</button>
+        <button class="tab" data-tab="about">How it works</button>
+      </nav>
+    </header>
+
+    <main>
+      <section id="notarize" class="panel active">
+        <div class="notary-line" id="notary-line">Loading notary…</div>
+
+        <form id="req-form" class="card">
+          <h2>1 · Request</h2>
+          <div class="row">
+            <select id="method" aria-label="Method">
+              <option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option>
+            </select>
+            <input id="url" type="url" required placeholder="https://api.example.com/v1/me" value="https://httpbin.org/json" />
+          </div>
+          <label>Headers <small>one per line, <code>Name: value</code>. Credentials stay hidden in presentations unless you reveal them.</small>
+            <textarea id="headers" rows="3" placeholder="Authorization: Bearer …">Accept: application/json</textarea>
+          </label>
+          <label id="body-label" hidden>Body <textarea id="body" rows="3"></textarea></label>
+          <fieldset class="modes">
+            <legend>Connection to the target</legend>
+            <label><input type="radio" name="mode" value="bridge" checked /> Through the notary's bridge</label>
+            <label><input type="radio" name="mode" value="proxy" /> tlsn proxy mode (faster, notary sees ciphertext only)</label>
+          </fieldset>
+          <p class="hint">A browser cannot open TCP, so the connection leaves from the notary's IP either way; that is why the browser price is higher than the native CLI's.</p>
+          <div class="quote" id="quote"></div>
+          <button type="submit" id="go" class="primary">Get price &amp; notarize</button>
+        </form>
+
+        <div class="card" id="pay-card" hidden>
+          <h2>2 · Pay</h2>
+          <p>Pay <strong id="pay-amount"></strong> sat from one of these mints, then paste the token.</p>
+          <ul id="pay-mints" class="mints"></ul>
+          <details><summary>Payment request (NUT-18, for wallets that pay <code>creqA</code> directly)</summary>
+            <code id="pay-creq" class="wrap"></code>
+            <button type="button" class="ghost" id="copy-creq">Copy</button>
+          </details>
+          <textarea id="pay-token" rows="3" placeholder="cashuB…"></textarea>
+          <div class="row end">
+            <button type="button" class="ghost" id="pay-cancel">Cancel</button>
+            <button type="button" class="primary" id="pay-ok">Pay</button>
+          </div>
+        </div>
+
+        <div class="card" id="progress-card" hidden>
+          <h2>3 · Notarizing</h2>
+          <ol class="steps" id="steps">
+            <li data-step="pay">Ticket bought</li>
+            <li data-step="setup">MPC setup with the notary</li>
+            <li data-step="request">TLS connection and request</li>
+            <li data-step="prove">Commitments and proofs</li>
+            <li data-step="attest">Signed attestation</li>
+          </ol>
+          <p class="error" id="error" hidden></p>
+          <p class="hint" id="ticket-line" hidden></p>
+        </div>
+
+        <div class="card" id="result-card" hidden>
+          <h2>4 · Choose what to reveal</h2>
+          <p>HTTP <strong id="res-status"></strong> · <span id="res-size"></span></p>
+          <pre id="res-body" class="body"></pre>
+          <div class="cols">
+            <div>
+              <h3>Response headers</h3>
+              <div id="res-headers" class="checks"></div>
+            </div>
+            <div>
+              <h3>Body</h3>
+              <label><input type="radio" name="body-reveal" value="all" checked /> Whole body</label>
+              <label><input type="radio" name="body-reveal" value="json" /> Only these JSON paths</label>
+              <input id="json-paths" placeholder="slideshow.author, slideshow.title" />
+              <label><input type="radio" name="body-reveal" value="none" /> Nothing</label>
+            </div>
+          </div>
+          <div class="row end">
+            <button type="button" class="ghost" id="dl-attestation">Download attestation + secrets</button>
+            <button type="button" class="primary" id="make-presentation">Create presentation</button>
+          </div>
+          <p class="hint">Keep the secrets private: anyone with them can make presentations of this session.</p>
+        </div>
+      </section>
+
+      <section id="verify" class="panel">
+        <div class="card">
+          <h2>Verify a presentation</h2>
+          <label>Presentation file <input type="file" id="v-file" accept=".presentation,application/octet-stream" /></label>
+          <label>Trusted notary keys <small>hex, one per line; empty = the keys this site's notary publishes</small>
+            <textarea id="v-keys" rows="2"></textarea>
+          </label>
+          <button class="primary" id="v-go">Verify</button>
+          <p class="error" id="v-error" hidden></p>
+        </div>
+        <div class="card" id="v-result" hidden>
+          <h2 id="v-title"></h2>
+          <p id="v-meta"></p>
+          <h3>Sent</h3><pre id="v-sent" class="body"></pre>
+          <h3>Received</h3><pre id="v-recv" class="body"></pre>
+          <p class="hint">Undisclosed bytes are shown as <code>X</code>.</p>
+        </div>
+      </section>
+
+      <section id="about" class="panel">
+        <div class="card prose">
+          <h2>How it works</h2>
+          <p>Your browser runs the TLS connection to the target itself, inside WebAssembly, and verifies the server certificate. The notary takes part in the TLS key schedule through multi-party computation, so it never sees your request or the response, only that a session happened.</p>
+          <p>At the end the notary signs an <strong>attestation</strong>: commitments to the transcript, the server's identity and the time. From it you build a <strong>presentation</strong> that reveals only the parts you choose. Anyone who trusts the notary's key can verify it offline, without contacting the notary.</p>
+          <p>Each session is paid with Cashu ecash, so the notary does not learn who you are. Prices are high on purpose: the notary is not a cheap proxy.</p>
+          <p>More, including the command-line client and instructions for AI agents: <a href="https://jooray.github.io/tlsnotary-cashu/">the project page</a>. Source and libraries: <a href="https://github.com/jooray/tlsnotary-cashu">github.com/jooray/tlsnotary-cashu</a>.</p>
+        </div>
+      </section>
+    </main>
+    <div class="toast" id="toast" hidden></div>
+    <footer>v<span id="version"></span></footer>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

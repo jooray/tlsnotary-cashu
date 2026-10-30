@@ -1,0 +1,11 @@
+[package]
+name = "tlsnc-protocol"
+description = "Wire types shared by the tlsnotary-cashu notary and its clients"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+futures = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }

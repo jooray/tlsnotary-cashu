@@ -1,0 +1,18 @@
+{
+  "name": "@tlsnc/verify",
+  "version": "0.1.0",
+  "description": "Verify tlsnotary-cashu presentations in the browser or Node (WebAssembly, no threads)",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist", "wasm"],
+  "scripts": {
+    "build:wasm": "./build-wasm.sh",
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test test/"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "tlsnotary-cashu",
+  "private": true,
+  "workspaces": [
+    "packages/verify",
+    "packages/client",
+    "apps/demo",
+    "apps/extension"
+  ],
+  "scripts": {
+    "build:wasm": "wasm/prover/build.sh && packages/verify/build-wasm.sh",
+    "build": "npm run build -w @tlsnc/verify -w @tlsnc/client && npm run build -w tlsnc-demo",
+    "build:extension": "npm run build -w @tlsnc/verify -w @tlsnc/client && npm run build -w tlsnc-extension"
+  }
+}

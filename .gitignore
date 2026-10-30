@@ -1,0 +1,11 @@
+/target
+**/target
+node_modules/
+dist/
+pkg/
+*.sqlite
+*.sqlite-*
+/data/
+.env
+packages/verify/wasm/
+dist-web/

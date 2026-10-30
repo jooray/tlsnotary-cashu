@@ -1,0 +1,72 @@
+# tlsnc-notary configuration. Prices are in sat and deliberately high: they
+# exist so that nobody uses the notary as a cheap proxy (DESIGN.md §3).
+
+name = "Cypherpunk TLSNotary"
+description = "Public TLSNotary notary, pay per session with Cashu. https://github.com/jooray/tlsnotary-cashu"
+
+# "systemd" = socket activation (deploy/tlsnc-notary.socket), so the service
+# itself needs no IP access to localhost. Alternatives: "unix:/path", "127.0.0.1:7150".
+listen = "systemd"
+
+data_dir = "/var/lib/tlsnc"
+signing_key_file = "/var/lib/tlsnc/notary.key"
+# Set when the key is created; published so verifiers can tell it from retired keys.
+# key_valid_from = 1793000000
+
+# Retired keys stay published so old attestations keep verifying.
+# [[previous_keys]]
+# alg = "secp256k1"
+# key = "02…"
+# valid_until = 1793000000
+
+mints = [
+  "https://cashu.cz",
+  "https://mint.mountainlake.io",
+  "https://21mint.me",
+  "https://mint.coinos.io",
+  "https://mint.minibits.cash/Bitcoin",
+]
+
+ticket_ttl_secs = 1800
+ticket_attempts = 3
+
+# Memory committed to concurrent sessions (each reserves its tier's memory_mb).
+memory_budget_mb = 3000
+
+[egress]
+# Every target lookup goes to these, never to /etc/resolv.conf. Must match
+# the DNS exception in deploy/tlsnc-egress.nft.
+resolvers = ["1.1.1.1", "9.9.9.9"]
+# On top of every non-global range: never connect to us. Put the public
+# addresses of this host and of your other machines here (and in
+# tlsnc-egress.nft and IPAddressDeny= in tlsnc-notary.service), so a client
+# cannot use the notary to reach them from the inside.
+deny = [
+  # "203.0.113.8/29",   # this host and its neighbours (example)
+]
+per_host_per_hour = 30
+connect_timeout_secs = 10
+
+[[tiers]]
+id = "S"
+max_sent = 4096
+max_recv = 1048576
+timeout_secs = 180
+memory_mb = 400
+price = { client = 42, notary = 210 }
+
+[[tiers]]
+id = "M"
+max_sent = 16384
+max_recv = 2097152
+timeout_secs = 300
+memory_mb = 900
+price = { client = 100, notary = 500 }
+
+[[tiers]]
+id = "L"
+max_sent = 32768
+max_recv = 2097152
+timeout_secs = 600
+memory_mb = 1600
+price = { client = 200, notary = 1000 }

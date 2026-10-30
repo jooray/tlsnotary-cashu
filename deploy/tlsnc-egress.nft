@@ -1,0 +1,57 @@
+#!/usr/sbin/nft -f
+# Egress, layer 3: packets of user `tlsnc` may only go to TCP 443 on the
+# public internet and to the two DNS resolvers in config.toml. Everything
+# else is dropped. Separate table, so firewalld's own tables are untouched.
+
+table inet tlsnc_egress
+delete table inet tlsnc_egress
+
+table inet tlsnc_egress {
+    set never {
+        type ipv4_addr
+        flags interval
+        elements = {
+            0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16,
+            172.16.0.0/12, 192.0.0.0/24, 192.0.2.0/24, 192.88.99.0/24,
+            192.168.0.0/16, 198.18.0.0/15, 198.51.100.0/24, 203.0.113.0/24,
+            224.0.0.0/4, 240.0.0.0/4,
+            # Add the public addresses of this host and of your other
+            # machines (the [egress] deny list in config.toml), e.g.:
+            # 203.0.113.8/29,
+        }
+    }
+
+    set resolvers {
+        type ipv4_addr
+        elements = { 1.1.1.1, 9.9.9.9 }
+    }
+
+    chain output {
+        type filter hook output priority filter; policy accept;
+        meta skuid "tlsnc" jump notary
+    }
+
+    chain notary {
+        ct state established,related accept
+        meta nfproto ipv6 drop
+        ip daddr @resolvers meta l4proto { udp, tcp } th dport 53 accept
+        ip daddr @never drop
+        tcp dport 443 accept
+        counter drop
+    }
+}
+
+# Optional: move notary traffic to an IP address of its own, so abuse never
+# touches the address your other services use. Needs the address configured
+# on the interface first, e.g. 203.0.113.13.
+#
+# table ip tlsnc_snat {
+#     chain mark {
+#         type route hook output priority mangle; policy accept;
+#         meta skuid "tlsnc" meta mark set 0x7a
+#     }
+#     chain post {
+#         type nat hook postrouting priority srcnat; policy accept;
+#         meta mark 0x7a oifname "eth0" snat to 203.0.113.13
+#     }
+# }

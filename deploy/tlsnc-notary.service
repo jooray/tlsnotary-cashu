@@ -1,0 +1,58 @@
+[Unit]
+Description=tlsnotary-cashu notary (TLSNotary attestations paid with Cashu)
+Documentation=https://github.com/jooray/tlsnotary-cashu
+Requires=tlsnc-notary.socket tlsnc-egress.service
+After=network-online.target tlsnc-egress.service
+Wants=network-online.target
+
+[Service]
+User=tlsnc
+Group=tlsnc
+ExecStart=/usr/local/bin/tlsnc-notary --config /etc/tlsnc/config.toml serve
+Restart=on-failure
+RestartSec=5
+Environment=RUST_LOG=info,tlsn=warn,mpz=warn,cdk=warn
+StateDirectory=tlsnc
+StateDirectoryMode=0700
+
+# Resource backstop (the code also reserves memory per session, see
+# memory_budget_mb in config.toml).
+MemoryHigh=3500M
+MemoryMax=4G
+CPUQuota=300%
+TasksMax=512
+
+# Egress, layer 2: whatever the code decides, this cgroup cannot reach
+# localhost, private ranges, our own hosts or IPv6 (drop the ::/0 line only
+# if the host has global IPv6 and the nftables rules handle it).
+# Ingress is the Unix socket above, which these rules do not touch.
+IPAddressDeny=localhost link-local multicast
+IPAddressDeny=0.0.0.0/8 10.0.0.0/8 100.64.0.0/10 172.16.0.0/12 192.168.0.0/16 198.18.0.0/15 240.0.0.0/4
+# This host's public addresses and your other machines (example):
+#IPAddressDeny=203.0.113.8/29
+IPAddressDeny=::/0
+
+# Hardening.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

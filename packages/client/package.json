@@ -1,0 +1,20 @@
+{
+  "name": "@tlsnc/client",
+  "version": "0.1.0",
+  "description": "Browser client for tlsnotary-cashu notaries: pay with Cashu, notarize HTTPS requests, build presentations",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@cashu/cashu-ts": "^4.12.0",
+    "@tlsnc/wasm": "file:../../wasm/prover/pkg"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

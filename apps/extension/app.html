@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>tlsnc wallet</title>
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><img src="/icon.svg" alt="" width="22" height="22" /> <span>TLSNotary <em>·</em> Cashu</span></div>
+    <nav>
+      <button class="tab active" data-tab="wallet">Wallet</button>
+      <button class="tab" data-tab="history">History</button>
+      <button class="tab" data-tab="backup">Backup</button>
+      <button class="tab" data-tab="settings">Settings</button>
+      <button class="tab" data-tab="verify">Verify</button>
+    </nav>
+  </header>
+  <main>
+    <section class="panel active" id="wallet">
+      <div class="card">
+        <div class="balance"><span id="total">…</span> <small>sat</small></div>
+        <ul class="mints" id="mints"></ul>
+        <div class="row end">
+          <button id="open-tab" class="ghost" title="Open the wallet in a tab">Open in tab</button>
+          <button id="notarize" class="primary">Notarize this tab</button>
+        </div>
+        <p class="hint" id="notarize-hint"></p>
+      </div>
+      <div class="card">
+        <h2>Receive</h2>
+        <label>Cashu token, or an amount in sat for a Lightning invoice
+          <textarea id="receive-input" rows="3" placeholder="cashuB… or 2100"></textarea>
+        </label>
+        <div class="row">
+          <label class="inline">Mint for Lightning <select id="receive-mint"></select></label>
+          <button id="receive" class="primary">Receive</button>
+        </div>
+        <p class="msg" id="receive-msg"></p>
+        <div id="quotes"></div>
+      </div>
+      <div class="card">
+        <h2>Send</h2>
+        <div class="row">
+          <input id="send-amount" type="number" min="1" placeholder="sat" />
+          <select id="send-mint"></select>
+          <button id="send">Create token</button>
+        </div>
+        <textarea id="send-token" rows="3" readonly hidden></textarea>
+        <div class="row end"><button id="send-copy" hidden>Copy token</button></div>
+        <p class="msg" id="send-msg"></p>
+      </div>
+    </section>
+
+    <section class="panel" id="history">
+      <div class="card">
+        <h2>History</h2>
+        <ul class="history" id="history-list"></ul>
+      </div>
+    </section>
+
+    <section class="panel" id="backup">
+      <div class="card">
+        <h2>Backup words</h2>
+        <p class="hint">These 12 words restore the wallet at any mint it used (NUT-13). Anyone with them can spend it.
+          They are stored unencrypted in this browser profile; keep only small amounts here.</p>
+        <div class="words blurred" id="words" title="Click to show"></div>
+        <div class="row end"><button id="words-copy">Copy words</button></div>
+      </div>
+      <div class="card">
+        <h2>Restore</h2>
+        <label>Words <textarea id="restore-words" rows="2" placeholder="twelve words …"></textarea></label>
+        <label>Mints to scan, one per line <textarea id="restore-mints" rows="4"></textarea></label>
+        <div class="row end"><button id="restore" class="primary">Restore</button></div>
+        <p class="msg" id="restore-msg"></p>
+      </div>
+      <div class="card">
+        <h2>Move funds out</h2>
+        <p class="hint">Export a mint's whole balance as one token (to paste into another wallet), or drop proofs that were spent elsewhere.</p>
+        <div class="row">
+          <select id="export-mint"></select>
+          <button id="export">Export as token</button>
+          <button id="sync">Check spent</button>
+        </div>
+        <textarea id="export-token" rows="3" readonly hidden></textarea>
+        <p class="msg" id="export-msg"></p>
+      </div>
+    </section>
+
+    <section class="panel" id="settings">
+      <div class="card">
+        <h2>Notary</h2>
+        <label>Notary URL <input id="set-notary" type="url" placeholder="https://notary.example.org" /></label>
+        <label>Expected notary key (hex, optional) <input id="set-key" placeholder="refuse any other key" /></label>
+        <div class="row end"><button id="save-settings" class="primary">Save</button></div>
+        <p class="msg" id="settings-msg"></p>
+      </div>
+      <div class="card" id="info-card">
+        <h2 id="info-name">…</h2>
+        <p class="hint" id="info-desc"></p>
+        <table class="tiers">
+          <thead><tr><th>Tier</th><th>Request</th><th>Response</th><th>Browser (notary connects)</th></tr></thead>
+          <tbody id="info-tiers"></tbody>
+        </table>
+        <h3>Accepted mints</h3>
+        <ul class="plain" id="info-mints"></ul>
+        <h3>Signing key</h3>
+        <code class="break" id="info-key"></code>
+      </div>
+    </section>
+
+    <section class="panel" id="verify">
+      <div class="card">
+        <h2>Verify a presentation</h2>
+        <p class="hint">Checked against the keys the configured notary publishes.</p>
+        <input id="verify-file" type="file" accept=".presentation,application/octet-stream" />
+        <div id="verify-out"></div>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="/src/app.ts"></script>
+</body>
+</html>

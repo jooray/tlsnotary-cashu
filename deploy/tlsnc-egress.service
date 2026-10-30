@@ -1,0 +1,13 @@
+[Unit]
+Description=tlsnotary-cashu notary egress rules (nftables)
+Before=tlsnc-notary.service
+After=nftables.service firewalld.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/tlsnc/egress.nft
+ExecStop=/usr/sbin/nft delete table inet tlsnc_egress
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "tlsnc: notarize pages, pay with Cashu",
+  "short_name": "tlsnc",
+  "version": "0.1.0",
+  "description": "Prove what a website showed you with TLSNotary. Pays the notary per page from a built-in Cashu wallet.",
+  "icons": { "16": "icon-16.png", "32": "icon-32.png", "48": "icon-48.png", "128": "icon-128.png" },
+  "action": {
+    "default_title": "tlsnc wallet",
+    "default_popup": "app.html?popup=1",
+    "default_icon": { "16": "icon-16.png", "32": "icon-32.png" }
+  },
+  "background": { "service_worker": "background.js", "type": "module" },
+  "permissions": ["storage", "alarms", "activeTab"],
+  "optional_permissions": ["cookies"],
+  "optional_host_permissions": ["https://*/*"],
+  "cross_origin_embedder_policy": { "value": "require-corp" },
+  "cross_origin_opener_policy": { "value": "same-origin" },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
+  "minimum_chrome_version": "116"
+}
